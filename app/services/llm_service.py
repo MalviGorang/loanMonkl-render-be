@@ -1440,7 +1440,7 @@ Task:
    - Provide detailed reasons for scores, noting primary matches (e.g., country, loan type) and secondary failures (e.g., education details).
    - Set "fallback": true if no university vendors were found in MongoDB.
 """
-    logger.info("Sending prompt to OpenAI GPT-4 API")
+    logger.info("Sending prompt to OpenAI GPT-3.5-turbo API")
     max_retries = 2
     for attempt in range(max_retries):
         try:
