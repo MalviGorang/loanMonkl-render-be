@@ -15,7 +15,7 @@ class MongoDBDuplicateKeyError(HTTPException):
         
         detail = "Duplicate key error encountered."
         if key_value and 'email' in key_value:
-            detail = f"Student with email '{key_value['email']}' already exists. If this is a new student with the same email, ensure the mobile number is different. If updating an existing student, both email and mobile number must match."
+            detail = f"User with email '{key_value['email']}' already exists. Please check if mobile number matches to update existing record."
         
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,

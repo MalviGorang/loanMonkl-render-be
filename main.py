@@ -7,7 +7,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from app.api.routes import router
-from app.utils.db_setup import setup_db_indexes
 import os
 
 # Configure logging
@@ -74,14 +73,6 @@ logger.info(f"CORS middleware configured with origins: {origins}")
 # Include API routes
 app.include_router(router, prefix="/api")
 logger.info("API routes included")
-
-# Set up database indexes
-try:
-    setup_db_indexes()
-    logger.info("Database indexes set up successfully")
-except Exception as e:
-    logger.error(f"Failed to set up database indexes: {str(e)}")
-    # Continue app startup even if index setup fails
 
 # Health check endpoint
 @app.get("/")

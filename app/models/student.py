@@ -68,7 +68,9 @@ class CoApplicantDetails(BaseModel):
     co_applicant_existing_loan_amount: Optional[AmountCurrency] = None
     co_applicant_existing_loan_emi_amount: Optional[AmountCurrency] = None
     co_applicant_emi_default: Optional[str] = None
-    owns_house: Optional[str] = Field(None, description="Whether co-applicant owns a house (Yes/No)")
+    co_applicant_house_ownership: Optional[str] = Field(None, description="Whether co-applicant owns a house (Yes/No)")
+    co_applicant_maintains_average_balance: Optional[str] = Field(None, description="Whether co-applicant maintains average balance (Yes/No)")
+
 
 class Student(BaseModel):
     """Model for student profile."""

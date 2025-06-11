@@ -4,14 +4,12 @@
 import logging
 from fastapi import APIRouter, HTTPException
 from app.models.student import Student
-from app.exceptions import DuplicateEmailError, MongoDBDuplicateKeyError, StudentExistsError
 from app.services.llm_service import generate_document_list, get_llm_vendor_matches
 from app.services.s3_service import generate_presigned_url
 from app.services.pincode_service import get_location_from_pincode
 from app.utils.validators import validate_email, validate_phone, validate_pincode, validate_cibil_score, validate_pan, validate_aadhaar
 from typing import Dict, List, Optional
 import pymongo
-from pymongo import errors as pymongo_errors
 from datetime import datetime
 import os
 import json
@@ -81,13 +79,9 @@ async def create_student(student: Student):
                 raise HTTPException(status_code=400, detail="Invalid co-applicant Aadhaar format")
         
         student_dict = student.dict(exclude_unset=True)
-        # Map mobile_number to mobile and ensure it's not None
+        # Map mobile_number to mobile
         if "mobile_number" in student_dict:
             student_dict["mobile"] = student_dict.pop("mobile_number")
-            # Ensure we don't have a None value for mobile
-            if student_dict["mobile"] is None:
-                logger.warning("Mobile number is None, using empty string instead")
-                student_dict["mobile"] = ""
         student_dict["created_at"] = datetime.utcnow()
         student_dict["updated_at"] = datetime.utcnow()
         if student.current_location_pincode:
@@ -99,108 +93,17 @@ async def create_student(student: Student):
             else:
                 logger.warning(f"Pincode lookup failed for {student.current_location_pincode}")
         if "student_id" in student_dict:
-            # Update existing student by student_id
             db.students.update_one({"student_id": student_dict["student_id"]}, {"$set": student_dict}, upsert=True)
             logger.info(f"Updated student profile with ID: {student_dict['student_id']}")
         else:
-            # Check if a student with the same email already exists
-            email = student_dict.get("email")
-            mobile = student_dict.get("mobile")
-            
-            if not email:
-                logger.warning("Email is required for student creation")
-                raise HTTPException(status_code=400, detail="Email is required for student creation")
-            
-            # Ensure mobile is not None
-            if mobile is None:
-                mobile = ""
-                student_dict["mobile"] = ""
-            
-            # Log the values we're using for debugging
-            logger.info(f"Searching for existing student with email: '{email}' and mobile: '{mobile}'")
-            
-            # Try to find a student with the same email
-            existing_student = db.students.find_one({"email": email})
-            
-            if existing_student:
-                # Log the mobile value from the existing record for debugging
-                logger.info(f"Found existing student with email '{email}'. Existing mobile: '{existing_student.get('mobile')}'")
-                
-                # If student exists, check if mobile matches
-                if str(existing_student.get("mobile", "")) == str(mobile):
-                    # If both email and mobile match, update the existing record
-                    logger.info(f"Found existing student with matching email and mobile. Updating record.")
-                    
-                    # Update the existing record with new data
-                    result = db.students.update_one(
-                        {"_id": existing_student["_id"]}, 
-                        {"$set": {**student_dict, "updated_at": datetime.utcnow()}}
-                    )
-                    
-                    if result.modified_count > 0:
-                        logger.info(f"Updated existing student with ID: {existing_student.get('student_id', str(existing_student['_id']))}")
-                    else:
-                        logger.warning(f"No changes made to student with ID: {existing_student.get('student_id', str(existing_student['_id']))}")
-                    
-                    # Set the student_id from the existing record
-                    student_dict["student_id"] = existing_student.get("student_id", str(existing_student["_id"]))
-                else:
-                    # If email matches but mobile doesn't, create a new record
-                    logger.info(f"Email exists but mobile doesn't match. Creating new student.")
-                    result = db.students.insert_one(student_dict)
-                    student_dict["student_id"] = str(result.inserted_id)
-                    logger.info(f"Created new student profile with ID: {student_dict['student_id']}")
-            else:
-                # If no student with this email exists, create a new record
-                logger.info(f"No existing student with this email. Creating new student.")
-                result = db.students.insert_one(student_dict)
-                student_dict["student_id"] = str(result.inserted_id)
-                logger.info(f"Created new student profile with ID: {student_dict['student_id']}")
-        
+            logger.info(f"Inserting student document: {student_dict}")
+            result = db.students.insert_one(student_dict)
+            student_dict["student_id"] = str(result.inserted_id)
+            logger.info(f"Created new student profile with ID: {student_dict['student_id']}")
         return {"student_id": student_dict["student_id"]}
     except Exception as e:
         logger.error(f"Error creating student profile: {str(e)}")
-        error_str = str(e)
-        
-        # Check if this is a MongoDB error
-        if "E11000 duplicate key error" in error_str:
-            # Log the full error for debugging
-            logger.info(f"Full duplicate key error: {error_str}")
-            
-            # Extract the email from the error message
-            import re
-            email_match = re.search(r'email: "([^"]+)"', error_str)
-            if email_match:
-                email = email_match.group(1)
-                # Try to find this student record
-                try:
-                    student_record = db.students.find_one({"email": email})
-                    if student_record:
-                        logger.info(f"Found student with email '{email}' and mobile '{student_record.get('mobile')}'")
-                        # Update our error message with this information
-                        mobile_in_request = student_dict.get("mobile", "")
-                        mobile_in_db = student_record.get("mobile", "")
-                        
-                        if str(mobile_in_db) == str(mobile_in_request):
-                            detail = f"Student with email '{email}' exists with the same mobile. Use the update feature."
-                        else:
-                            detail = f"Student with email '{email}' exists with a different mobile. Current mobile: '{mobile_in_db}', Your input: '{mobile_in_request}'"
-                        
-                        raise HTTPException(status_code=400, detail=detail)
-                except Exception as lookup_error:
-                    logger.warning(f"Error looking up student during error handling: {lookup_error}")
-                
-                # Create a properly formatted key_value dict
-                key_value = {"email": email}
-                code = 11000  # Standard MongoDB duplicate key error code
-                
-                # Raise the appropriate error
-                raise MongoDBDuplicateKeyError(key_value=key_value, code=code)
-            
-            # Default error if parsing fails
-            raise HTTPException(status_code=400, detail="Duplicate student record detected. Please check your email and mobile number.")
-        else:
-            raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/countries")
 async def get_countries():
@@ -300,8 +203,10 @@ async def match_vendors(student: Student):
             
         return {"matches": matches, "summary": summary}
     except Exception as e:
-        logger.error(f"Error matching vendors: {str(e)}")
-        return {"matches": [], "summary": f"Failed to match vendors: {str(e)}"}
+        error_message = str(e)
+        logger.error(f"Error matching vendors: {error_message}")
+        # Return a safe error response
+        return {"matches": [], "summary": f"Failed to match vendors: {error_message}"}
 
 @router.post("/documents/generate")
 async def generate_documents(student: Student):
@@ -312,17 +217,20 @@ async def generate_documents(student: Student):
         
         # Ensure doc_list is a string, then split into array
         if not doc_list:
-            doc_list = ""
-            
-        # Convert string to array if needed
-        if isinstance(doc_list, str):
+            doc_list = []
+        elif isinstance(doc_list, str):
             doc_list = [line.strip() for line in doc_list.split('\n') if line.strip()]
-            
+        
         logger.info("Document list generated successfully")
+        
+        # Return properly formatted JSON response
+        logger.info(f"Returning document list with {len(doc_list)} items")
         return {"document_list": doc_list}
     except Exception as e:
         logger.error(f"Error generating documents: {str(e)}")
-        return {"document_list": []}
+        return {"document_list": []}  # Return empty array instead of string
+
+    
 
 @router.post("/documents/upload-url")
 async def get_upload_url(student_id: str, document_type: str, file_name: str):
