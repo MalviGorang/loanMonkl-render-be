@@ -770,7 +770,7 @@ Task:
    - Co-Applicant: If requires_co_applicant is True, Co-Applicant Available must be True and Co-Applicant Relation in supported_co_applicant_relations (empty passes).
    - Collateral: For Secured, if requires_collateral is True or null, Collateral Available must be True (do not check Collateral Type).
    - CIBIL Score: If cibil_score_requirement is "None" or includes "preferred", pass. If numeric, CIBIL Score ≥ requirement.
-   - Own House: If own_house_required is True and vendor not in ["HDFC Credila", "Avanse", "Auxilo", "Avanse Global", "Prodigy", "Mpower"], Own House must be True.
+   - Own House: If own_house_required is True and vendor not in ["HDFC Credila", "Avanse Global", "Prodigy", "Mpower"], Own House must be True.
 
 2. **Scoring** (100 points):
    - University Vendor List: +20 if vendor in university_vendors or in ["HDFC Credila", "Auxilo", "Avanse", "Tata Capital", "InCred"].

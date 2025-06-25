@@ -607,7 +607,7 @@ VENDORS = [
         "active": True,
         "criteria": {
             "loan_options": ["Unsecured"],
-            "max_secured_loan_inr": None,
+            "max_secured_loan_inr": None, 
             "max_unsecured_loan_usd": 100000,
             "min_loan_inr": 700000,
             "interest_rate_secured": None,
