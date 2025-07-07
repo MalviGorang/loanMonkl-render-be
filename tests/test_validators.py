@@ -10,6 +10,9 @@ from app.utils.validators import (
     validate_cibil_score,
     validate_pan,
     validate_aadhaar,
+    validate_student_id,
+    validate_document_type,
+    validate_file_name,
 )
 
 
@@ -62,3 +65,38 @@ def test_validate_aadhaar():
     assert validate_aadhaar(None) == True
     assert validate_aadhaar("123456789012") == True
     assert validate_aadhaar("12345") == False
+
+
+def test_validate_student_id():
+    """Test student ID validation."""
+    assert validate_student_id(None) == False
+    assert validate_student_id("") == False
+    assert validate_student_id("STU123") == True
+    assert validate_student_id("stu_123-abc") == True
+    assert validate_student_id("123") == True
+    assert validate_student_id("a" * 51) == False  # Too long
+    assert validate_student_id("stu@123") == False  # Invalid character
+
+
+def test_validate_document_type():
+    """Test document type validation."""
+    assert validate_document_type(None) == False
+    assert validate_document_type("") == False
+    assert validate_document_type("academic_transcript") == True
+    assert validate_document_type("passport") == True
+    assert validate_document_type("invalid_type") == False
+    assert validate_document_type("PASSPORT") == True  # Case insensitive
+    assert validate_document_type("Academic_Transcript") == True  # Case insensitive
+
+
+def test_validate_file_name():
+    """Test file name validation."""
+    assert validate_file_name(None) == False
+    assert validate_file_name("") == False
+    assert validate_file_name("document.pdf") == True
+    assert validate_file_name("my_document.docx") == True
+    assert validate_file_name("image.jpg") == True
+    assert validate_file_name("../../../etc/passwd") == False  # Path traversal
+    assert validate_file_name("document/subdir.pdf") == False  # Directory separator
+    assert validate_file_name("document.exe") == False  # Invalid extension
+    assert validate_file_name("a" * 256) == False  # Too long

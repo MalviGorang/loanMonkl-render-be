@@ -14,6 +14,9 @@ from app.utils.validators import (
     validate_cibil_score,
     validate_pan,
     validate_aadhaar,
+    validate_student_id,
+    validate_document_type,
+    validate_file_name,
 )
 from typing import Dict, List, Optional
 import pymongo
@@ -225,7 +228,7 @@ async def get_courses(course_type: Optional[str] = None, degree: Optional[str] =
 
     except Exception as e:
         logger.error(f"Error fetching courses: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch courses")
 
 
 @router.get("/pincode/{pincode}")
@@ -244,7 +247,7 @@ async def lookup_pincode(pincode: str):
         return location
     except Exception as e:
         logger.error(f"Error looking up pincode: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to lookup pincode")
 
 
 @router.post("/vendors/match")
@@ -300,6 +303,20 @@ async def get_upload_url(student_id: str, document_type: str, file_name: str):
     logger.info(
         f"Received POST /api/documents/upload-url with student_id: {student_id}, document_type: {document_type}, file_name: {file_name}"
     )
+
+    # Validate all input parameters
+    if not validate_student_id(student_id):
+        logger.warning(f"Invalid student_id format: {student_id}")
+        raise HTTPException(status_code=400, detail="Invalid student ID format")
+
+    if not validate_document_type(document_type):
+        logger.warning(f"Invalid document_type: {document_type}")
+        raise HTTPException(status_code=400, detail="Invalid document type")
+
+    if not validate_file_name(file_name):
+        logger.warning(f"Invalid file_name: {file_name}")
+        raise HTTPException(status_code=400, detail="Invalid file name format")
+
     try:
         url = generate_presigned_url(student_id, document_type, file_name)
         if not url:
@@ -309,11 +326,11 @@ async def get_upload_url(student_id: str, document_type: str, file_name: str):
         return {"url": url}
     except Exception as e:
         logger.error(f"Error generating upload URL: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/courses/{course_type}")
-async def get_courses(course_type: str):
+async def get_courses_by_type_endpoint(course_type: str):
     """Get list of courses based on course type."""
     logger.info(f"Received GET /api/courses/{course_type}")
     try:

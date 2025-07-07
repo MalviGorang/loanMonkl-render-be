@@ -64,3 +64,50 @@ def validate_aadhaar(aadhaar: Optional[str]) -> bool:
         return True
     pattern = r"^\d{12}$"
     return bool(re.match(pattern, aadhaar))
+
+
+def validate_student_id(student_id: Optional[str]) -> bool:
+    """Validate student ID format (alphanumeric, max 50 chars)."""
+    if not student_id:
+        return False
+    # Student ID should be alphanumeric with hyphens/underscores, max 50 chars
+    pattern = r"^[a-zA-Z0-9_-]{1,50}$"
+    return bool(re.match(pattern, student_id))
+
+
+def validate_document_type(document_type: Optional[str]) -> bool:
+    """Validate document type against allowed values."""
+    if not document_type:
+        return False
+    allowed_types = {
+        "academic_transcript",
+        "degree_certificate",
+        "passport",
+        "visa",
+        "bank_statement",
+        "financial_document",
+        "english_test_score",
+        "standardized_test_score",
+        "recommendation_letter",
+        "sop",
+        "cv_resume",
+        "other",
+    }
+    return document_type.lower() in allowed_types
+
+
+def validate_file_name(file_name: Optional[str]) -> bool:
+    """Validate file name to prevent path traversal and ensure safe names."""
+    if not file_name:
+        return False
+    # File name should not contain path traversal patterns
+    if ".." in file_name or "/" in file_name or "\\" in file_name:
+        return False
+    # Should be alphanumeric with dots, hyphens, underscores, max 255 chars
+    pattern = r"^[a-zA-Z0-9._-]{1,255}$"
+    if not re.match(pattern, file_name):
+        return False
+    # Must have a valid file extension
+    allowed_extensions = {".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".txt"}
+    extension = "." + file_name.lower().split(".")[-1] if "." in file_name else ""
+    return extension in allowed_extensions
