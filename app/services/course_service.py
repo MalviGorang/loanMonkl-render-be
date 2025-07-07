@@ -11,7 +11,7 @@ STEM_COURSES = [
     "Mathematics",
     "Physics",
     "Information Technology",
-    "Robotics"
+    "Robotics",
 ]
 
 NON_STEM_COURSES = [
@@ -24,7 +24,7 @@ NON_STEM_COURSES = [
     "Design",
     "Journalism",
     "Languages",
-    "Philosophy"
+    "Philosophy",
 ]
 
 MANAGEMENT_COURSES = [
@@ -37,8 +37,9 @@ MANAGEMENT_COURSES = [
     "Supply Chain Management",
     "Operations Management",
     "Project Management",
-    "Entrepreneurship"
+    "Entrepreneurship",
 ]
+
 
 def get_courses_by_type(course_type: str) -> List[str]:
     """
@@ -47,6 +48,6 @@ def get_courses_by_type(course_type: str) -> List[str]:
     course_map = {
         "STEM": STEM_COURSES,
         "Non-STEM": NON_STEM_COURSES,
-        "Management": MANAGEMENT_COURSES
+        "Management": MANAGEMENT_COURSES,
     }
     return course_map.get(course_type, [])
