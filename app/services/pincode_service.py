@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["FA_bots"]
 
+
 def get_location_from_pincode(pincode: str) -> Optional[Dict]:
     """Fetch city and state from pincode using MongoDB or external API."""
     # Check MongoDB first
@@ -29,7 +30,13 @@ def get_location_from_pincode(pincode: str) -> Optional[Dict]:
             post_office = data[0]["PostOffice"][0]
             location = {"city": post_office["District"], "state": post_office["State"]}
             # Cache in MongoDB
-            db.pincode.insert_one({"pincode": pincode, **location, "region": post_office.get("Region", "")})
+            db.pincode.insert_one(
+                {
+                    "pincode": pincode,
+                    **location,
+                    "region": post_office.get("Region", ""),
+                }
+            )
             return location
         return None
     except requests.exceptions.RequestException as e:

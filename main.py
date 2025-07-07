@@ -12,16 +12,13 @@ import os
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,  # Changed to INFO
-    format='%(asctime)s %(levelname)s: %(message)s',
-    handlers=[
-        logging.FileHandler('backend.log'),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s %(levelname)s: %(message)s",
+    handlers=[logging.FileHandler("backend.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
 # Suppress pymongo debug logs
-logging.getLogger('pymongo').setLevel(logging.WARNING)
+logging.getLogger("pymongo").setLevel(logging.WARNING)
 
 # Load environment variables
 load_dotenv()
@@ -40,7 +37,7 @@ except Exception as e:
 app = FastAPI(
     title="Loan Assistance Tool API",
     description="API for an AI-driven student loan assistance tool",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add CORS middleware for frontend communication
@@ -73,6 +70,7 @@ logger.info(f"CORS middleware configured with origins: {origins}")
 # Include API routes
 app.include_router(router, prefix="/api")
 logger.info("API routes included")
+
 
 # Health check endpoint
 @app.get("/")
