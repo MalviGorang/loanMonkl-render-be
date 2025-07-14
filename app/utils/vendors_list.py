@@ -21,7 +21,7 @@ VENDORS = [
                 "Netherlands", "France", "Switzerland", "Belgium", "Austria", "Norway", "Poland",
                 "Australia", "Newzealand", "Germany", "Singapore", "Malaysia", "Hong Kong", "Dubai"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": 60,
@@ -75,7 +75,7 @@ VENDORS = [
                 "Greece", "Malta", "Australia", "Newzealand", "Germany", "South Africa", "Singapore",
                 "Malaysia", "Hong Kong"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": 60,
@@ -128,7 +128,7 @@ VENDORS = [
                 "Netherlands", "France", "Switzerland", "Belgium", "Austria", "Norway", "Poland",
                 "Ukraine", "Greece", "Malta", "Australia", "Newzealand", "Germany"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": 60,
@@ -181,7 +181,7 @@ VENDORS = [
                 "Greece", "Malta", "Australia", "Newzealand", "Germany", "South Africa", "Singapore",
                 "Malaysia", "Hong Kong"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": 60,
@@ -230,7 +230,7 @@ VENDORS = [
             "prepayment_penalty": "None",
             "margin_money_percentage": 0,
             "supported_countries": ["US"],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": None,
@@ -275,7 +275,7 @@ VENDORS = [
                 "US", "UK", "Ireland", "Germany", "Canada", "Australia", "Newzealand",
                 "South Africa", "Singapore", "Malaysia", "Hong Kong", "Dubai", "Rest of Europe"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": [
                 {"Conditional Admission": True}, {"Admission letter not recived": False}, {"Admission Letter": True}
@@ -325,7 +325,7 @@ VENDORS = [
             "prepayment_penalty": "None",
             "margin_money_percentage": 0,
             "supported_countries": ["US", "Canada", "Germany", "France", "UK", "Newzealand"],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": False,
             "min_academic_score_percentage": 60,
@@ -377,7 +377,7 @@ VENDORS = [
                 "US", "UK", "Ireland", "Germany", "Canada", "Australia", "Newzealand",
                 "South Africa", "Singapore", "Malaysia", "Hong Kong"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": False,
             "min_academic_score_percentage": 60,
@@ -429,7 +429,7 @@ VENDORS = [
                 "US", "UK", "Ireland", "Germany", "Canada", "Australia", "Newzealand",
                 "South Africa", "Singapore", "Malaysia", "Hong Kong", "Dubai"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": False,
             "min_academic_score_percentage": 60,
@@ -477,7 +477,7 @@ VENDORS = [
             "prepayment_penalty": "None",
             "margin_money_percentage": 15,
             "supported_countries": [],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": False,
             "min_academic_score_percentage": 60,
@@ -528,7 +528,7 @@ VENDORS = [
                 "US", "UK", "Ireland", "Germany", "Canada", "Australia", "Newzealand",
                 "South Africa", "Singapore", "Malaysia", "Hong Kong", "All countries"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": False,
             "min_academic_score_percentage": 60,
@@ -566,7 +566,7 @@ VENDORS = [
         "criteria": {
             "loan_options": ["Unsecured"],
             "max_secured_loan_inr": None,
-            "max_unsecured_loan_usd": 220000,
+            "max_unsecured_loan_inr": 18600000,
             "min_loan_inr": None,
             "interest_rate_secured": None,
             "interest_rate_unsecured": "9.99%",
@@ -577,7 +577,7 @@ VENDORS = [
             "prepayment_penalty": "None",
             "margin_money_percentage": 0,
             "supported_countries": ["US", "UK", "Australia", "Ireland", "France"],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": 60,
@@ -608,7 +608,7 @@ VENDORS = [
         "criteria": {
             "loan_options": ["Unsecured"],
             "max_secured_loan_inr": None, 
-            "max_unsecured_loan_usd": 100000,
+            "max_unsecured_loan_usd": 1000000,
             "min_loan_inr": 700000,
             "interest_rate_secured": None,
             "interest_rate_unsecured": "12.99% ",
@@ -619,7 +619,7 @@ VENDORS = [
             "prepayment_penalty": "None",
             "margin_money_percentage": 0,
             "supported_countries": ["US", "Canada"],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": 60,
@@ -666,7 +666,7 @@ VENDORS = [
                 "Ukraine", "Greece", "Malta", "Australia", "Newzealand", "Germany", "South Africa",
                 "Singapore", "Malaysia", "Hong Kong", "All countries"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": True,
             "min_academic_score_percentage": 60,
@@ -714,7 +714,7 @@ VENDORS = [
                 "US", "UK", "Ireland", "Germany", "Canada", "Australia", "Newzealand",
                 "Rest of Europe", "Singapore"
             ],
-            "supported_degrees": ["Masters", "Bachelors", "PgDiploma"],
+            "supported_degrees": ["Master's", "Bachelor's", "Diploma","PhD"],
             "supported_courses": ["Stem", "NonStem", "Management"],
             "requires_admission": False,
             "min_academic_score_percentage": 60,

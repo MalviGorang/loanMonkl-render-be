@@ -2,12 +2,15 @@
 # API routes for student, vendor, and document operations
 
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.models.student import Student
-from app.services.llm_service import generate_document_list, get_llm_vendor_matches
+from app.models.user import UserResponse
+from app.services.llm_service import generate_document_list, get_vendor_matches, generate_profile_suggestions
 from app.services.s3_service import generate_presigned_url
 from app.services.pincode_service import get_location_from_pincode
 from app.utils.validators import validate_email, validate_phone, validate_pincode, validate_cibil_score, validate_pan, validate_aadhaar
+from app.utils.auth import get_current_user
+from app.routes.auth import router as auth_router
 from typing import Dict, List, Optional
 import pymongo
 from datetime import datetime
@@ -19,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Include authentication routes
+router.include_router(auth_router, prefix="/auth", tags=["authentication"])
+
 # MongoDB client
 try:
     client = pymongo.MongoClient(os.getenv("MONGO_URI"))
@@ -29,9 +35,12 @@ except Exception as e:
     raise HTTPException(status_code=500, detail="Database connection failed")
 
 @router.post("/students")
-async def create_student(student: Student):
+async def create_student(
+    student: Student, 
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Create or update a student profile."""
-    logger.info(f"Received student profile data")
+    logger.info(f"Received student profile data from user: {current_user.email}")
     try:
         student_dict = student.dict(exclude_unset=True)
         
@@ -190,11 +199,14 @@ async def lookup_pincode(pincode: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/vendors/match")
-async def match_vendors(student: Student):
+async def match_vendors(
+    student: Student,
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Match student profile with vendors."""
-    logger.info(f"Received POST /api/vendors/match with payload: {json.dumps(student.dict(exclude_unset=True), default=str)}")
+    logger.info(f"Received POST /api/vendors/match from user: {current_user.email}")
     try:
-        matches, summary = get_llm_vendor_matches(student.dict(exclude_unset=True))
+        matches, summary = get_vendor_matches(student.dict(exclude_unset=True))
         logger.info(f"Vendor matching completed: {summary}")
         
         # Ensure matches is always an array
@@ -209,9 +221,12 @@ async def match_vendors(student: Student):
         return {"matches": [], "summary": f"Failed to match vendors: {error_message}"}
 
 @router.post("/documents/generate")
-async def generate_documents(student: Student):
+async def generate_documents(
+    student: Student,
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Generate a tailored document list for the student."""
-    logger.info(f"Received POST /api/documents/generate with payload: {json.dumps(student.dict(exclude_unset=True), default=str)}")
+    logger.info(f"Received POST /api/documents/generate from user: {current_user.email}")
     try:
         doc_list = generate_document_list(student.dict(exclude_unset=True))
         
@@ -247,8 +262,23 @@ async def get_upload_url(student_id: str, document_type: str, file_name: str):
         logger.error(f"Error generating upload URL: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/profile/suggestions")
+async def get_profile_suggestions(
+    student: Student,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Generate AI-powered suggestions for a student profile."""
+    logger.info(f"Received POST /api/profile/suggestions from user: {current_user.email}")
+    try:
+        suggestions = generate_profile_suggestions(student.dict(exclude_unset=True))
+        logger.info("Profile suggestions generated successfully")
+        return {"suggestions": suggestions}
+    except Exception as e:
+        logger.error(f"Error generating profile suggestions: {str(e)}")
+        return {"suggestions": []}
+
 @router.get("/courses/{course_type}")
-async def get_courses(course_type: str):
+async def get_courses_by_type(course_type: str):
     """Get list of courses based on course type."""
     logger.info(f"Received GET /api/courses/{course_type}")
     try:
