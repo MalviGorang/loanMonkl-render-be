@@ -52,3 +52,5 @@ coverage
 *.pem
 .cache
 __pycache__
+.pyo
+.pyc
