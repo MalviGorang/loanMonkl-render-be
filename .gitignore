@@ -94,3 +94,6 @@ coverage
 .DS_Store
 *.pem
 .cache
+__pycache__
+.pyo
+.pyc

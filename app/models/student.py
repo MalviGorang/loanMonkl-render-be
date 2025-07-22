@@ -97,11 +97,19 @@ class Student(BaseModel):
     """Model for student profile."""
 
     student_id: Optional[str] = None
+
+    name: Optional[str] = None  # Fixed: added default value
+    mobile_number: Optional[str] = None  # Fixed: added default value
+    email: Optional[str] = None  # Fixed: added default value
+    date_of_birth: Optional[str] = None
+    current_location_pincode: Optional[str] = None
+
     name: Optional[str]
     mobile_number: Optional[str]
     email: Optional[str]
     date_of_birth: Optional[str]
     current_location_pincode: Optional[str]
+
     current_location_city: Optional[str] = None
     current_location_state: Optional[str] = None
     current_profession: Optional[str] = None
