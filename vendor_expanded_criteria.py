@@ -177,7 +177,7 @@ vendor_criteria =  {
                 "cibil_score": 700,
                 }
         }}],
-        "supported_countries": ["USA", "UK", "Australia", "Germany", "France", "Singapore", "New Zealand", "Ireland", "Netherlands", "Sweden", "Switzerland", "Italy", "Spain", "Japan", "Finland","UAR"],
+        "supported_countries": ["USA", "UK", "Australia", "Germany", "France", "Singapore", "New Zealand", "Ireland", "Netherlands", "Sweden", "Switzerland", "Italy", "Spain", "Japan", "Finland","UAE"],
         "supported_pincode": ["10001", "10002", "10003", "10004", "10005"]
         }
 
