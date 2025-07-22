@@ -11,7 +11,7 @@ from pymongo.errors import ConnectionFailure
 from dotenv import load_dotenv
 from collections import OrderedDict
 from functools import lru_cache
-import openai
+from openai import OpenAI
 
 # Import VENDORS from utils/vendors_list.py
 from ..utils.vendors_list import VENDORS  # Adjusted import path
@@ -1152,107 +1152,113 @@ def generate_document_list(student_profile: Dict, use_llm: bool = False) -> str:
     return generate_function_based_document_list(student_profile)
 
 def generate_profile_suggestions(profile_data: Dict) -> List[Dict]:
-    """
-    Generate AI-powered suggestions for improving a student's loan profile
-    
-    Args:
-        profile_data (dict): The student's profile data
-        
-    Returns:
-        list: List of suggestion objects
-    """
+    """Generate AI-powered suggestions for improving a student's loan profile."""
     openai_api_key = os.getenv("OPENAI_API_KEY")
     
     if not openai_api_key:
         logger.error("OpenAI API key not found")
         return []
 
-    openai.api_key = openai_api_key
+    client = OpenAI(api_key=openai_api_key)
     
-    # Optimized prompt
+    # Optimized prompt for GPT-3.5-turbo: Simplified, strict JSON instruction
     prompt_template = """
-You are an expert education loan advisor with deep knowledge of how lenders evaluate student profiles for international education loans.
+You are an expert education loan advisor. Analyze the student's profile and provide 5-7 actionable suggestions to improve loan eligibility, targeting more vendor matches, better rates, higher amounts, and approval chances.
 
-Your task is to analyze the student's profile and provide 5-7 actionable suggestions to improve their loan eligibility, focusing on increasing vendor matches, securing better interest rates, qualifying for higher loan amounts, and improving overall approval chances.
-
-# STUDENT PROFILE DATA
+# PROFILE
 {{student_profile_json}}
 
-# CONTEXT
-Education loan lenders evaluate students on these key factors:
-- Academic performance (10th, 12th, Bachelor's scores)
-- English proficiency test scores (IELTS, TOEFL, PTE, etc.)
-- Target country, university, and course selection
-- Financial security (collateral, co-applicant strength)
-- Credit history and CIBIL score
-- Work experience and income potential
-- Prior loan history
+# CRITERIA
+- Academic: marks_10th.value, marks_12th.value (min 60%)
+- Tests: IELTS (min 6), TOEFL (min 80), PTE (min 51)
+- Study: study_destination_country, university_name
+- Financial: co_applicant_income_amount.amount (min ₹20,000/month), collateral_available
+- CIBIL: cibil_score (min 700 for higher limits)
+- Course: intended_degree (Master's preferred), course_type
+- FOIR: 75% (income ≥ ₹100,000/month) or 50%; Master's with PSI uses ₹5,000 EMI during moratorium if CIBIL ≥ 700
 
-# RESPONSE FORMAT
-Return a JSON array containing 5-7 actionable suggestions, with each object having:
-- "title": Brief, action-oriented title (10 words or less)
-- "description": Detailed explanation of what to do and why (2-3 sentences)
-- "priority": "high", "medium", or "low" (based on potential impact)
-- "timeframe": Estimated implementation time (e.g., "1-2 weeks", "1 month")
-- "impact": Specific benefits to loan application (e.g., "May increase loan eligibility by up to 20%")
+# FORMAT
+Return a JSON array of 5-7 objects:
+{
+  "title": "<≤10 words>",
+  "description": "<2-3 sentences, ≤50 words>",
+  "priority": "high|medium|low",
+  "timeframe": "<e.g., 1-2 weeks>",
+  "impact": "<specific benefit, e.g., Increases eligibility by 20%>"
+}
+Sort by priority (high first). Output MUST be valid JSON, no extra text or markdown.
 
-Sort suggestions by priority with high-impact suggestions first.
-
-# GUIDELINES FOR SUGGESTIONS
-Focus on practical improvements that:
-1. Address the most critical weaknesses in the profile
-2. Can be realistically implemented before loan application
-3. Will have the highest impact on loan eligibility
-4. Are tailored to the student's specific circumstances
-5. Consider both short-term and long-term improvements
-
-# IMPORTANT CONSIDERATIONS
-- If the student lacks collateral, suggest adding property or fixed deposits as security
-- If English scores are below 7 (IELTS), 100 (TOEFL), or 65 (PTE), suggest improvement
-- For low academic scores, suggest compensatory strengths or certifications
-- If no co-applicant is listed, suggest adding a financially strong family member
-- Consider university/course selection impact on loan approval chances
-- Identify any missing critical information in the profile
-
-The response MUST be valid JSON and follow the exact structure described above.
+# GUIDELINES
+- Verify fields (e.g., study_destination_country, course_type) to avoid irrelevant suggestions.
+- Prioritize low income, no collateral, low scores.
+- Suggest collateral, higher IELTS (<7), stronger co-applicant.
+- For Master's with PSI and CIBIL ≥ 700, highlight full loan potential.
+- Respond with plain JSON only. No markdown, no ```json tags.
+- Ensure realistic, high-impact fixes.
     """
     
-    # Replace placeholder with actual profile data
+    # Replace placeholder with profile data
     prompt = prompt_template.replace("{{student_profile_json}}", json.dumps(profile_data, indent=2))
     
-    # Call OpenAI API
-    try:
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an expert education loan advisor."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2  # Lower temperature for more consistent, focused responses
-        )
-        
-        content = response.choices[0].message.content
-        
-        # Parse JSON response
+    # Retry logic for robust parsing
+    max_retries = 2
+    for attempt in range(max_retries):
         try:
-            # Try direct parsing
-            suggestions = json.loads(content)
-            if isinstance(suggestions, list) and len(suggestions) >= 5:
-                return suggestions
-        except json.JSONDecodeError:
-            # Try extracting from code block
-            json_match = re.search(r"```(?:json)?\n([\s\S]*?)\n```", content)
-            if json_match:
-                try:
-                    suggestions = json.loads(json_match.group(1))
-                    if isinstance(suggestions, list) and len(suggestions) >= 5:
-                        return suggestions
-                except json.JSONDecodeError:
-                    pass
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an expert education loan advisor. Return valid JSON only."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,
                 
-        # Return empty list if parsing fails
-        logger.warning("Failed to parse OpenAI response for suggestions")
-        return []
-    except Exception as e:
-        logger.error(f"Error calling OpenAI API: {str(e)}")
-        return []
+            )
+            
+            content = response.choices[0].message.content.strip()
+            logger.debug("OpenAI response: %s", content[:500])
+            
+            # Parse JSON response
+            try:
+                suggestions = json.loads(content)
+                if isinstance(suggestions, list) and 5 <= len(suggestions) <= 7:
+                    # Validate suggestion structure
+                    valid = all(
+                        isinstance(s, dict) and all(k in s for k in ["title", "description", "priority", "timeframe", "impact"])
+                        and s["priority"] in ["high", "medium", "low"]
+                        and len(s["title"].split()) <= 10
+                        and len(s["description"].split()) <= 50
+                        for s in suggestions
+                    )
+                    if valid:
+                        return suggestions
+            except json.JSONDecodeError:
+                # Try extracting from markdown
+                json_match = re.search(r"```(?:json)?\n([\s\S]*?)\n```", content, re.DOTALL)
+                if json_match:
+                    try:
+                        suggestions = json.loads(json_match.group(1))
+                        if isinstance(suggestions, list) and 5 <= len(suggestions) <= 7:
+                            valid = all(
+                                isinstance(s, dict) and all(k in s for k in ["title", "description", "priority", "timeframe", "impact"])
+                                and s["priority"] in ["high", "medium", "low"]
+                                for s in suggestions
+                            )
+                            if valid:
+                                return suggestions
+                    except json.JSONDecodeError:
+                        pass
+            
+            logger.warning("Failed to parse OpenAI response on attempt %d", attempt + 1)
+            if attempt < max_retries - 1:
+                time.sleep(1)  # Brief delay before retry
+                continue
+            return []
+        except Exception as e:
+            logger.error("Error calling OpenAI API on attempt %d: %s", attempt + 1, str(e))
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+            return []
+    
+    logger.error("Failed to generate valid suggestions after %d attempts", max_retries)
+    return []
