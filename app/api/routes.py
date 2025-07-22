@@ -375,15 +375,15 @@ async def get_profile_suggestions(
 
 async def get_courses_by_type(course_type: str):
 
-async def get_courses_by_type_endpoint(course_type: str):
+# async def get_courses_by_type_endpoint(course_type: str):
 
-    """Get list of courses based on course type."""
-    logger.info(f"Received GET /api/courses/{course_type}")
-    try:
-        from app.services.course_service import get_courses_by_type
+#     """Get list of courses based on course type."""
+#     logger.info(f"Received GET /api/courses/{course_type}")
+#     try:
+#         from app.services.course_service import get_courses_by_type
 
-        courses = get_courses_by_type(course_type)
-        return {"courses": courses}
-    except Exception as e:
-        logger.error(f"Error fetching courses: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch courses")
+#         courses = get_courses_by_type(course_type)
+#         return {"courses": courses}
+#     except Exception as e:
+#         logger.error(f"Error fetching courses: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to fetch courses")
