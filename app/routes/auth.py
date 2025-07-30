@@ -1,20 +1,18 @@
 # backend/app/routes/auth.py
-# Authentication routes for login, signup, and token management
+# Authentication routes for OTP-based login, signup, and token management
 
 import logging
 from datetime import timedelta, datetime
 from fastapi import APIRouter, HTTPException, status, Depends
-from app.models.user import UserCreate, UserLogin, Token, UserResponse
+from app.models.user import UserCreate, UserLogin, Token, UserResponse, OTPRequest, OTPVerification
 from app.utils.auth import (
-    authenticate_user, 
+    authenticate_user_with_otp, 
     create_access_token, 
-    get_password_hash, 
     get_user_by_email, 
     create_user_in_db,
     get_current_user,
-    send_verification_email_to_user,
-    verify_email_token,
-    resend_verification_email,
+    generate_and_store_otp,
+    verify_otp,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from app.utils.validators import validate_email, validate_phone
@@ -25,7 +23,7 @@ router = APIRouter()
 
 @router.post("/signup", response_model=dict)
 async def signup(user: UserCreate):
-    """Register a new user and send verification email."""
+    """Register a new user and send OTP for email verification."""
     logger.info(f"Signup attempt for email: {user.email}")
     
     try:
@@ -36,8 +34,8 @@ async def signup(user: UserCreate):
                 detail="Invalid email format"
             )
         
-        # Validate mobile number if provided
-        if user.mobile_number and not validate_phone(user.mobile_number):
+        # Validate mobile number
+        if not validate_phone(user.mobile_number):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid mobile number format"
@@ -51,11 +49,9 @@ async def signup(user: UserCreate):
                 detail="Email already registered"
             )
         
-        # Hash password and create user
-        hashed_password = get_password_hash(user.password)
+        # Create user data (no password required)
         user_data = {
             "email": user.email,
-            "password": hashed_password,
             "full_name": user.full_name,
             "mobile_number": user.mobile_number
         }
@@ -75,48 +71,21 @@ async def signup(user: UserCreate):
                 detail="Failed to create user"
             )
         
-        # Get created user to get verification token
-        created_user = get_user_by_email(user.email)
-        if not created_user:
+        # Generate and send OTP for email verification
+        otp_sent = generate_and_store_otp(user.email, "registration")
+        
+        if not otp_sent:
+            logger.warning(f"Failed to send OTP to {user.email}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve created user"
+                detail="Failed to send verification OTP"
             )
-        
-        # Send verification email
-        verification_sent = send_verification_email_to_user(
-            user.email, 
-            created_user["verification_token"], 
-            user.full_name or None
-        )
-        
-        if not verification_sent:
-            logger.warning(f"Failed to send verification email to {user.email}")
-            # For testing: auto-verify the user if email fails
-            try:
-                from app.utils.auth import get_database_connection
-                db = get_database_connection()
-                db.users.update_one(
-                    {"email": user.email},
-                    {
-                        "$set": {
-                            "is_verified": True,
-                            "verification_token": None,
-                            "verification_token_expires": None,
-                            "updated_at": datetime.utcnow()
-                        }
-                    }
-                )
-                logger.info(f"Auto-verified user for testing: {user.email}")
-                verification_sent = True
-            except Exception as e:
-                logger.error(f"Failed to auto-verify user: {e}")
         
         logger.info(f"User created successfully: {user.email}")
         return {
-            "message": "User created successfully. Please check your email to verify your account.",
+            "message": "User created successfully. Please check your email for OTP to verify your account.",
             "email": user.email,
-            "verification_sent": verification_sent
+            "otp_sent": True
         }
         
     except HTTPException:
@@ -128,18 +97,136 @@ async def signup(user: UserCreate):
             detail="Failed to create user"
         )
 
+@router.post("/verify-registration-otp")
+async def verify_registration_otp(request: OTPVerification):
+    """Verify OTP during registration and activate user account."""
+    logger.info(f"Registration OTP verification attempt for email: {request.email}")
+    
+    try:
+        # Validate email format
+        if not validate_email(request.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid email format"
+            )
+        
+        # Check if user exists and is not verified
+        user = get_user_by_email(request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        if user.get("is_verified", False):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already verified"
+            )
+        
+        # Verify OTP
+        if not verify_otp(request.email, request.otp, "registration"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired OTP"
+            )
+        
+        # Mark user as verified
+        from app.utils.auth import get_database_connection
+        db = get_database_connection()
+        db.users.update_one(
+            {"email": request.email},
+            {
+                "$set": {
+                    "is_verified": True,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        logger.info(f"User registration verified successfully: {request.email}")
+        return {
+            "message": "Email verified successfully. You can now log in.",
+            "email": request.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during registration OTP verification: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="OTP verification failed"
+        )
+
+@router.post("/request-login-otp")
+async def request_login_otp(request: OTPRequest):
+    """Request OTP for login."""
+    logger.info(f"Login OTP request for email: {request.email}")
+    
+    try:
+        # Validate email format
+        if not validate_email(request.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid email format"
+            )
+        
+        # Check if user exists and is verified
+        user = get_user_by_email(request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        if not user.get("is_verified", False):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please verify your email address first"
+            )
+        
+        if not user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is disabled"
+            )
+        
+        # Generate and send OTP
+        otp_sent = generate_and_store_otp(request.email, "login")
+        
+        if not otp_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send login OTP"
+            )
+        
+        logger.info(f"Login OTP sent to: {request.email}")
+        return {
+            "message": "Login OTP sent successfully",
+            "email": request.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting login OTP: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send login OTP"
+        )
 @router.post("/login", response_model=Token)
 async def login(user: UserLogin):
-    """Authenticate user and return access token."""
+    """Authenticate user with email and OTP."""
     logger.info(f"Login attempt for email: {user.email}")
     
     try:
-        # Authenticate user
-        authenticated_user = authenticate_user(user.email, user.password)
+        # Authenticate user with OTP
+        authenticated_user = authenticate_user_with_otp(user.email, user.otp)
         if not authenticated_user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
+                detail="Invalid email or OTP",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
@@ -170,7 +257,6 @@ async def login(user: UserLogin):
             mobile_number=authenticated_user.get("mobile_number"),
             is_active=authenticated_user.get("is_active", True),
             is_verified=authenticated_user.get("is_verified", False),
-            verification_token=authenticated_user.get("verification_token"),
             created_at=authenticated_user["created_at"],
             updated_at=authenticated_user["updated_at"]
         )
@@ -194,44 +280,14 @@ async def login(user: UserLogin):
 
 from pydantic import BaseModel
 
-class VerifyEmailRequest(BaseModel):
-    token: str
-
-class ResendVerificationRequest(BaseModel):
+class ResendOTPRequest(BaseModel):
     email: str
+    purpose: str = "registration"  # Can be "registration" or "login"
 
-@router.post("/verify-email")
-async def verify_email(request: VerifyEmailRequest):
-    """Verify user email with verification token."""
-    logger.info(f"Email verification attempt with token: {request.token[:10]}...")
-    
-    try:
-        verified_email = verify_email_token(request.token)
-        if not verified_email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired verification token"
-            )
-        
-        logger.info(f"Email verified successfully: {verified_email}")
-        return {
-            "message": "Email verified successfully. You can now log in.",
-            "email": verified_email
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error during email verification: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Email verification failed"
-        )
-
-@router.post("/resend-verification")
-async def resend_verification_email_endpoint(request: ResendVerificationRequest):
-    """Resend verification email to user."""
-    logger.info(f"Resend verification email request for: {request.email}")
+@router.post("/resend-otp")
+async def resend_otp(request: ResendOTPRequest):
+    """Resend OTP to user."""
+    logger.info(f"Resend OTP request for: {request.email}, purpose: {request.purpose}")
     
     try:
         # Validate email format
@@ -241,7 +297,7 @@ async def resend_verification_email_endpoint(request: ResendVerificationRequest)
                 detail="Invalid email format"
             )
         
-        # Check if user exists and is not verified
+        # Check if user exists
         user = get_user_by_email(request.email)
         if not user:
             raise HTTPException(
@@ -249,33 +305,41 @@ async def resend_verification_email_endpoint(request: ResendVerificationRequest)
                 detail="User not found"
             )
         
-        if user.get("is_verified", False):
+        # For registration OTP, user should not be verified
+        if request.purpose == "registration" and user.get("is_verified", False):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email is already verified"
             )
         
-        # Resend verification email
-        success = resend_verification_email(request.email)
+        # For login OTP, user should be verified
+        if request.purpose == "login" and not user.get("is_verified", False):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please verify your email address first"
+            )
+        
+        # Generate and send new OTP
+        success = generate_and_store_otp(request.email, request.purpose)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send verification email"
+                detail="Failed to send OTP"
             )
         
-        logger.info(f"Verification email resent to: {request.email}")
+        logger.info(f"OTP resent to: {request.email}")
         return {
-            "message": "Verification email sent successfully",
+            "message": f"{request.purpose.title()} OTP sent successfully",
             "email": request.email
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error resending verification email: {str(e)}")
+        logger.error(f"Error resending OTP: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to resend verification email"
+            detail="Failed to resend OTP"
         )
 
 @router.get("/me", response_model=UserResponse)

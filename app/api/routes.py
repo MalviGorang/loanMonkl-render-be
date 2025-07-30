@@ -371,9 +371,9 @@ async def get_profile_suggestions(
         logger.error(f"Error generating profile suggestions: {str(e)}")
         return {"suggestions": []}
 
-@router.get("/courses/{course_type}")
+# @router.get("/courses/{course_type}")
 
-async def get_courses_by_type(course_type: str):
+# async def get_courses_by_type(course_type: str):
 
 # async def get_courses_by_type_endpoint(course_type: str):
 
