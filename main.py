@@ -94,12 +94,8 @@ origins = [
     "http://localhost:8080",  # Vite dev server
     "http://localhost:5174",
     "http://localhost:3000",
-    "https://loan-monk-ai-fe-eb1r.vercel.app",
-    "http://fa-loanmaon-dev-fe-1286572314.ap-south-1.elb.amazonaws.com",
-    "https://fa-loanmaon-dev-fe-1286572314.ap-south-1.elb.amazonaws.com",
-    "http://dev-be-fa-loanmonk-1035406255.ap-south-1.elb.amazonaws.com",
-    "https://dev-be-fa-loanmonk-1035406255.ap-south-1.elb.amazonaws.com",
-    "https://9db1bae1-6a35-4211-88c7-a2fdf134135a.lovableproject.com"
+    "https://9db1bae1-6a35-4211-88c7-a2fdf134135a.lovableproject.com",
+    "https://loan-monk-ai-fe-vqri.vercel.app"
 ]
 
 # Add wildcard origin in development environment
