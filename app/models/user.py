@@ -7,13 +7,19 @@ from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
-    full_name: Optional[str] = None
-    mobile_number: Optional[str] = None
+    full_name: str
+    mobile_number: str
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    otp: str
+
+class OTPRequest(BaseModel):
+    email: EmailStr
+
+class OTPVerification(BaseModel):
+    email: EmailStr
+    otp: str
 
 class UserResponse(BaseModel):
     id: str
@@ -22,7 +28,6 @@ class UserResponse(BaseModel):
     mobile_number: Optional[str] = None
     is_active: bool = True
     is_verified: bool = False
-    verification_token: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

@@ -1,5 +1,5 @@
 # backend/app/utils/auth.py
-# Authentication utilities for JWT token handling
+# Authentication utilities for JWT token handling and OTP
 
 import os
 import logging
@@ -12,7 +12,7 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import pymongo
 from app.models.user import TokenData, UserResponse
-from app.services.email_service import send_verification_email
+from app.services.email_service import send_verification_email, generate_otp, send_otp_email
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
-VERIFICATION_TOKEN_EXPIRE_HOURS = int(os.getenv("VERIFICATION_TOKEN_EXPIRE_HOURS", "24"))  # 24 hours
+OTP_EXPIRE_MINUTES = int(os.getenv("OTP_EXPIRE_MINUTES", "10"))  # 10 minutes
 
-# Password hashing
+# Password hashing (kept for backward compatibility)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # HTTP Bearer for token extraction
@@ -52,6 +52,81 @@ def get_password_hash(password: str) -> str:
 def generate_verification_token() -> str:
     """Generate a secure verification token."""
     return secrets.token_urlsafe(32)
+
+def generate_and_store_otp(email: str, purpose: str = "login") -> bool:
+    """Generate OTP and store it in database with expiration."""
+    try:
+        db = get_database_connection()
+        otp = generate_otp()
+        expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXPIRE_MINUTES)
+        
+        # Store or update OTP in database
+        db.otps.update_one(
+            {"email": email, "purpose": purpose},
+            {
+                "$set": {
+                    "otp": otp,
+                    "expires_at": expires_at,
+                    "created_at": datetime.utcnow(),
+                    "is_used": False
+                }
+            },
+            upsert=True
+        )
+        
+        # Send OTP via email
+        success = send_otp_email(email, otp, purpose)
+        if success:
+            logger.info(f"OTP generated and sent for {email} - purpose: {purpose}")
+            return True
+        else:
+            # Clean up OTP if email failed
+            db.otps.delete_one({"email": email, "purpose": purpose})
+            return False
+    except Exception as e:
+        logger.error(f"Error generating OTP for {email}: {e}")
+        return False
+
+def verify_otp(email: str, otp: str, purpose: str = "login") -> bool:
+    """Verify OTP and mark it as used."""
+    try:
+        db = get_database_connection()
+        
+        # Find valid OTP
+        otp_doc = db.otps.find_one({
+            "email": email,
+            "purpose": purpose,
+            "otp": otp,
+            "expires_at": {"$gt": datetime.utcnow()},
+            "is_used": False
+        })
+        
+        if not otp_doc:
+            logger.warning(f"Invalid or expired OTP for {email}")
+            return False
+        
+        # Mark OTP as used
+        db.otps.update_one(
+            {"_id": otp_doc["_id"]},
+            {"$set": {"is_used": True, "used_at": datetime.utcnow()}}
+        )
+        
+        logger.info(f"OTP verified successfully for {email}")
+        return True
+    except Exception as e:
+        logger.error(f"Error verifying OTP for {email}: {e}")
+        return False
+
+def cleanup_expired_otps():
+    """Clean up expired OTPs from database."""
+    try:
+        db = get_database_connection()
+        result = db.otps.delete_many({
+            "expires_at": {"$lt": datetime.utcnow()}
+        })
+        logger.info(f"Cleaned up {result.deleted_count} expired OTPs")
+    except Exception as e:
+        logger.error(f"Error cleaning up OTPs: {e}")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token."""
@@ -103,8 +178,6 @@ def create_user_in_db(user_data: dict) -> str:
         user_data["updated_at"] = datetime.utcnow()
         user_data["is_active"] = True
         user_data["is_verified"] = False  # Users start as unverified
-        user_data["verification_token"] = generate_verification_token()
-        user_data["verification_token_expires"] = datetime.utcnow() + timedelta(hours=VERIFICATION_TOKEN_EXPIRE_HOURS)
         
         # Generate a unique ID for the user (using email as unique identifier)
         user_data["id"] = user_data["email"]
@@ -247,16 +320,28 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         mobile_number=user.get("mobile_number"),
         is_active=user.get("is_active", True),
         is_verified=user.get("is_verified", False),
-        verification_token=user.get("verification_token"),
         created_at=user["created_at"],
         updated_at=user["updated_at"]
     )
 
 def authenticate_user(email: str, password: str) -> Optional[dict]:
-    """Authenticate user with email and password."""
+    """Authenticate user with email and password (legacy)."""
     user = get_user_by_email(email)
     if not user:
         return None
     if not verify_password(password, user["password"]):
         return None
+    return user
+
+def authenticate_user_with_otp(email: str, otp: str) -> Optional[dict]:
+    """Authenticate user with email and OTP."""
+    # First verify the OTP
+    if not verify_otp(email, otp, "login"):
+        return None
+    
+    # Get user from database
+    user = get_user_by_email(email)
+    if not user:
+        return None
+    
     return user
